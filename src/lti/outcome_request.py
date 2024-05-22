@@ -23,7 +23,8 @@ VALID_ATTRIBUTES = [
     'lis_result_sourcedid',
     'consumer_key',
     'consumer_secret',
-    'post_request'
+    'post_request',
+    'needs_additional_review'
 ]
 
 
@@ -69,7 +70,7 @@ class OutcomeRequest(object):
         request.process_xml(post_request.body)
         return request
 
-    def post_replace_result(self, score, result_data=None):
+    def post_replace_result(self, score, result_data=None, needs_additional_review=False):
         '''
         POSTs the given score to the Tool Consumer with a replaceResult.
 
@@ -85,6 +86,7 @@ class OutcomeRequest(object):
         self.operation = REPLACE_REQUEST
         self.score = score
         self.result_data = result_data
+        self.needs_additional_review = needs_additional_review
         if result_data is not None:
             if len(result_data) > 1:
                 error_msg = ('Dictionary result_data can only have one entry. '
@@ -177,6 +179,8 @@ class OutcomeRequest(object):
                     self.result_data = {'url': result}
                 elif r := resultData.find('ltiLaunchUrl', root.nsmap):
                     self.result_data = {'ltiLaunchUrl': r}
+
+            self.needs_additional_review = result.find('submissionDetails/needsAdditionalReview', root.nsmap) is not None
         except:
             pass
 
@@ -246,5 +250,11 @@ class OutcomeRequest(object):
             elif 'ltiLaunchUrl' in self.result_data:
                 resultDataLaunchURL = etree.SubElement(resultData, 'ltiLaunchUrl')
                 resultDataLaunchURL.text = self.result_data['ltiLaunchUrl']
+
+        # Canvas needsAdditionalReview extension:
+        # https://github.com/instructure/canvas-lms/blob/master/doc/api/assignment_tools.md#submission-needs-additional-review
+        if self.needs_additional_review:
+            submissionDetails = etree.SubElement(request, 'submissionDetails')
+            etree.SubElement(submissionDetails, 'needsAdditionalReview')
 
         return etree.tostring(root, xml_declaration=True, encoding='utf-8')
