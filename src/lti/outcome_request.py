@@ -39,7 +39,7 @@ class OutcomeRequest(object):
     they each use it differently. The TP will use it to POST an OAuth-signed
     request to the TC. A TC will use it to parse such a request from a TP.
     '''
-    def __init__(self, opts=defaultdict(lambda: None), headers=None):
+    def __init__(self, opts=defaultdict(lambda: None), headers=None, requests_session=None):
         # Initialize all our accessors to None
         for attr in VALID_ATTRIBUTES:
             setattr(self, attr, None)
@@ -56,6 +56,7 @@ class OutcomeRequest(object):
         self.headers = CaseInsensitiveDict(headers or {})
         if "Content-Type" not in self.headers:
             self.headers['Content-type'] = 'application/xml'
+        self.requests_session = requests_session or requests.Session()
 
     @staticmethod
     def from_post_request(post_request, headers=None):
@@ -148,7 +149,7 @@ class OutcomeRequest(object):
                               signature_type=SIGNATURE_TYPE_AUTH_HEADER,
                               force_include_body=True, **kwargs)
 
-        resp = requests.post(self.lis_outcome_service_url, auth=header_oauth,
+        resp = self.requests_session.post(self.lis_outcome_service_url, auth=header_oauth,
                              data=self.generate_request_xml(),
                              headers=self.headers)
         outcome_resp = OutcomeResponse.from_post_response(resp, resp.content)
